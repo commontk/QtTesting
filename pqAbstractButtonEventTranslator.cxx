@@ -74,6 +74,14 @@ bool pqAbstractButtonEventTranslator::translateEvent(QObject* Object, QEvent* Ev
         {
         onActivate(object);
         }
+      QToolButton* toolButton = qobject_cast<QToolButton*>(object);
+      if(toolButton && 
+         e->button() == Qt::LeftButton && 
+         object->rect().contains(e->pos()) &&
+         toolButton->menu())
+        {
+        onActivate(object);
+        }
       }
     break;
     case QEvent::MouseButtonRelease:
@@ -99,7 +107,7 @@ void pqAbstractButtonEventTranslator::onActivate(QAbstractButton* actualObject)
   if (tb && tb->defaultAction())
     {
     object = tb->defaultAction();
-    }
+    } 
   if(actualObject->isCheckable())
     {
     const bool new_value = !actualObject->isChecked();
