@@ -76,7 +76,11 @@ bool pqTreeViewEventPlayer::playEvent(
     int column = regExp0.cap(2).toInt();
     int check_state = regExp0.cap(3).toInt();
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+    QStringList indices = str_index.split(".", Qt::SkipEmptyParts);
+#else
     QStringList indices = str_index.split(".", QString::SkipEmptyParts);
+#endif
     QTreeWidgetItem* cur_item = NULL;
     foreach (QString cur_index, indices)
     {
