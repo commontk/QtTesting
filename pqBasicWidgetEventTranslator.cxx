@@ -116,13 +116,22 @@ bool pqBasicWidgetEventTranslator::translateEvent(
           {
             int buttons = wheelEvent->buttons();
             int modifiers = wheelEvent->modifiers();
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+            int numStep = wheelEvent->angleDelta().y();
+#else
             int numStep = wheelEvent->delta();
+#endif
             emit recordEvent(object, "mouseWheel", QString("%1,%2,%3,%4,%5")
                                                      .arg(numStep)
                                                      .arg(buttons)
                                                      .arg(modifiers)
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+                                                     .arg(qRound(wheelEvent->position().x()))
+                                                     .arg(qRound(wheelEvent->position().y())));
+#else
                                                      .arg(wheelEvent->x())
                                                      .arg(wheelEvent->y()));
+#endif
           }
         }
         return true;
