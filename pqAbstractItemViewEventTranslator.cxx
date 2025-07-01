@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAbstractItemViewEventTranslator.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqAbstractItemViewEventTranslator.h"
 
@@ -84,7 +56,7 @@ bool pqAbstractItemViewEventTranslator::translateEvent(QObject* Object, QEvent* 
                        .arg(ke->text())
                        .arg(ke->isAutoRepeat())
                        .arg(ke->count());
-      emit recordEvent(object, "keyEvent", data);
+      Q_EMIT recordEvent(object, "keyEvent", data);
       return true;
     }
     case QEvent::MouseButtonPress:
@@ -125,19 +97,19 @@ bool pqAbstractItemViewEventTranslator::translateEvent(QObject* Object, QEvent* 
                        .arg(idxStr);
       if (Event->type() == QEvent::MouseButtonPress)
       {
-        emit recordEvent(object, "mousePress", info);
+        Q_EMIT recordEvent(object, "mousePress", info);
       }
       else if (Event->type() == QEvent::MouseButtonDblClick)
       {
-        emit recordEvent(object, "mouseDblClick", info);
+        Q_EMIT recordEvent(object, "mouseDblClick", info);
       }
       else if (Event->type() == QEvent::MouseButtonRelease)
       {
         if (this->LastPos != mouseEvent->pos())
         {
-          emit recordEvent(object, "mouseMove", info);
+          Q_EMIT recordEvent(object, "mouseMove", info);
         }
-        emit recordEvent(object, "mouseRelease", info);
+        Q_EMIT recordEvent(object, "mouseRelease", info);
       }
       return true;
       break;
@@ -153,20 +125,29 @@ bool pqAbstractItemViewEventTranslator::translateEvent(QObject* Object, QEvent* 
       if (wheelEvent)
       {
         QString idxStr;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+        QModelIndex idx = object->indexAt(wheelEvent->position().toPoint());
+#else
         QModelIndex idx = object->indexAt(wheelEvent->pos());
+#endif
         idxStr = toIndexStr(idx);
         QRect r = object->visualRect(idx);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+        relPt = wheelEvent->position().toPoint() - r.topLeft();
+#else
         relPt = wheelEvent->pos() - r.topLeft();
-        int numStep = wheelEvent->delta() > 0 ? 120 : -120;
+#endif
+        int numStep = wheelEvent->angleDelta().y() > 0 ? 120 : -120;
         int buttons = wheelEvent->buttons();
         int modifiers = wheelEvent->modifiers();
-        emit emit recordEvent(Object, "mouseWheel", QString("%1,%2,%3,%4,%5")
-                                                      .arg(numStep)
-                                                      .arg(buttons)
-                                                      .arg(modifiers)
-                                                      .arg(relPt.x())
-                                                      .arg(relPt.y())
-                                                      .arg(idxStr));
+        Q_EMIT recordEvent(Object, "mouseWheel",
+          QString("%1,%2,%3,%4,%5")
+            .arg(numStep)
+            .arg(buttons)
+            .arg(modifiers)
+            .arg(relPt.x())
+            .arg(relPt.y())
+            .arg(idxStr));
       }
       return true;
       break;

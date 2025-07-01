@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPlayBackEventsDialog.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqPlayBackEventsDialog.h"
 #include "pqCommentEventPlayer.h"
@@ -95,9 +67,7 @@ pqPlayBackEventsDialog::pqImplementation::pqImplementation(
 }
 
 // ----------------------------------------------------------------------------
-pqPlayBackEventsDialog::pqImplementation::~pqImplementation()
-{
-}
+pqPlayBackEventsDialog::pqImplementation::~pqImplementation() {}
 
 // ----------------------------------------------------------------------------
 void pqPlayBackEventsDialog::pqImplementation::init(pqPlayBackEventsDialog* dialog)
@@ -263,12 +233,13 @@ void pqPlayBackEventsDialog::insertFiles()
 // ----------------------------------------------------------------------------
 void pqPlayBackEventsDialog::removeFiles()
 {
-  if (QMessageBox::Ok == QMessageBox::warning(this, QString("Remove files"),
-                           QString("Are you sure you want to \n"
-                                   "remove all checked files ?\n"),
-                           QMessageBox::Ok, QMessageBox::Cancel))
+  if (QMessageBox::Ok ==
+    QMessageBox::warning(this, QString("Remove files"),
+      QString("Are you sure you want to \n"
+              "remove all checked files ?\n"),
+      QMessageBox::Ok, QMessageBox::Cancel))
   {
-    foreach (QString file, this->selectedFileNames())
+    Q_FOREACH (QString file, this->selectedFileNames())
     {
       int index = this->Implementation->Filenames.indexOf(file);
       this->Implementation->Ui.tableWidget->removeRow(index);
@@ -350,7 +321,9 @@ void pqPlayBackEventsDialog::onStarted(const QString& filename)
   file.open(QIODevice::ReadOnly);
   this->Implementation->Ui.logBrowser->append(QString("Start file : %1").arg(infoFile.fileName()));
   QTextStream stream(&file);
+#if QT_VERSION < 0x060000
   stream.setCodec("UTF-8");
+#endif
   this->Implementation->Ui.currentFileLabel->setText(infoFile.fileName());
   while (!stream.atEnd())
   {
@@ -382,7 +355,7 @@ void pqPlayBackEventsDialog::updateUi()
   // Update Moda/Modeless
   this->onModal(this->Implementation->TestUtility->playingTest() &&
     !(this->Implementation->TestUtility->playingTest() &&
-                  this->Implementation->Dispatcher.isPaused()));
+      this->Implementation->Dispatcher.isPaused()));
 
   // Update player buttons
   this->Implementation->Ui.playPauseButton->setChecked(
@@ -427,7 +400,7 @@ void pqPlayBackEventsDialog::updateUi()
     this->Implementation->setProgressBarValue(this->Implementation->CurrentFile,
       static_cast<int>((static_cast<double>(this->Implementation->CurrentLine) /
                          static_cast<double>(this->Implementation->MaxLines - 1)) *
-                                                100));
+        100));
   }
   else
   {

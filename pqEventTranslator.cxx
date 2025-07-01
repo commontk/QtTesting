@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqEventTranslator.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqEventTranslator.h"
 
@@ -92,10 +64,10 @@ struct pqEventTranslator::pqImplementation
     // Hide the overlay
     this->CheckOverlay->hide();
 
-    // Nullfied it's parent
+    // Nullified it's parent
     this->CheckOverlay->setParent(NULL);
 
-    // Set the overlayed widget to null
+    // Set the overlaid widget to null
     this->CheckOverlayWidgetOn = NULL;
   }
 
@@ -103,7 +75,7 @@ struct pqEventTranslator::pqImplementation
   /// Stores the working set of widget translators
   QList<pqWidgetEventTranslator*> Translators;
   /// Stores the set of objects that should be ignored when translating events
-  QMap<QObject*, QRegExp> IgnoredObjects;
+  QMap<QObject*, QRegularExpression> IgnoredObjects;
 
   // list of widgets for which mouse propagation will happen
   // we'll only translate the first and ignore the rest
@@ -118,7 +90,7 @@ struct pqEventTranslator::pqImplementation
   // Pointer to the overlay
   QPointer<pqCheckEventOverlay> CheckOverlay;
 
-  // Pointer to the overlayed widget
+  // Pointer to the overlaid widget
   QPointer<QWidget> CheckOverlayWidgetOn;
 
   // Record interaction timings flag
@@ -151,7 +123,7 @@ pqEventTranslator::~pqEventTranslator()
 void pqEventTranslator::start()
 {
   QCoreApplication::instance()->installEventFilter(this);
-  emit this->started();
+  Q_EMIT this->started();
 }
 
 // ----------------------------------------------------------------------------
@@ -159,13 +131,13 @@ void pqEventTranslator::stop()
 {
   QCoreApplication::instance()->removeEventFilter(this);
   this->check(false);
-  emit this->stopped();
+  Q_EMIT this->stopped();
 }
 
 // ----------------------------------------------------------------------------
 void pqEventTranslator::addDefaultWidgetEventTranslators(pqTestUtility* util)
 {
-  // Add generalistic translator first, then specific, in order for this to work
+  // Add general translator first, then specific, in order for this to work
   addWidgetEventTranslator(new pqBasicWidgetEventTranslator());
   addWidgetEventTranslator(new pqAbstractButtonEventTranslator());
   addWidgetEventTranslator(new pqAbstractItemViewEventTranslator());
@@ -272,7 +244,7 @@ pqEventComment* pqEventTranslator::eventComment() const
 }
 
 // ----------------------------------------------------------------------------
-void pqEventTranslator::ignoreObject(QObject* object, QRegExp commandFilter)
+void pqEventTranslator::ignoreObject(QObject* object, QRegularExpression commandFilter)
 {
   this->Implementation->IgnoredObjects.insert(object, commandFilter);
 }
@@ -282,12 +254,10 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
 {
   if (this->Implementation->Recording)
   {
-#if QT_VERSION >= 0x050000
     if (object->isWindowType())
     {
       return false;
     }
-#endif
 
     // Only widgets
     QWidget* widget = qobject_cast<QWidget*>(object);
@@ -326,7 +296,7 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
       if (this->Implementation->Checking)
       {
         // In Gl Case, parentless widget is not transparent to mouse event
-        // The event is  applied to the overlayed widget or an another top widget
+        // The event is  applied to the overlaid widget or an another top widget
         // (before ignoredObjects)
         // TODO : use mask instead
 
@@ -346,23 +316,27 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
           QWidget* topWidget;
           // recover all top widgets
           QWidgetList topWidgets = QApplication::topLevelWidgets();
-          foreach (topWidget, topWidgets)
+          Q_FOREACH (topWidget, topWidgets)
           {
             // only the visible ones
             if (!topWidget->isHidden())
             {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+              auto pos = static_cast<QMouseEvent*>(event)->globalPos();
+#else
+              auto pos = static_cast<QMouseEvent*>(event)->globalPosition().toPoint();
+#endif
               // Check it is not the overlay, and it contains the mouse cursor
               if (topWidget != this->Implementation->CheckOverlay &&
-                topWidget->geometry().contains(static_cast<QMouseEvent*>(event)->globalPos(), true))
+                topWidget->geometry().contains(pos, true))
               {
-                // Recover the child widget onder the cursor, if any
-                QWidget* childWidget = topWidget->childAt(
-                  topWidget->mapFromGlobal(static_cast<QMouseEvent*>(event)->globalPos()));
+                // Recover the child widget under the cursor, if any
+                QWidget* childWidget = topWidget->childAt(topWidget->mapFromGlobal(pos));
 
-                // If child exist, check it is not the overlayed widget and indeed a new widget
+                // If child exist, check it is not the overlaid widget and indeed a new widget
                 if (childWidget == NULL ||
                   (childWidget != NULL &&
-                      childWidget != this->Implementation->CheckOverlayWidgetOn))
+                    childWidget != this->Implementation->CheckOverlayWidgetOn))
                 {
                   // if a child exist, use it
                   if (childWidget != NULL)
@@ -379,7 +353,7 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
           }
           if (foundTop)
           {
-            // If we found a top widget behin the cursor, use it
+            // If we found a top widget behind the cursor, use it
             widget = topWidget;
           }
           else
@@ -412,7 +386,7 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
           return false;
         }
 
-        // Mouse Move on a non-previously overlayed widget
+        // Mouse Move on a non-previously overlaid widget
         if (event->type() == QEvent::MouseMove &&
           this->Implementation->CheckOverlayWidgetOn != widget)
         {
@@ -443,7 +417,7 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
 
             // Check if widget is parent to gl widget
             QList<QWidget*> children = widget->findChildren<QWidget*>();
-            foreach (QWidget* child, children)
+            Q_FOREACH (QWidget* child, children)
             {
               if (child->inherits("QVTKWidget"))
               {
@@ -465,12 +439,12 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
             // Set the validity of the overlay
             this->Implementation->CheckOverlay->Valid = validTranslator;
 
-            // Set parent of the overlay to be parent of the overlayed widget
+            // Set parent of the overlay to be parent of the overlaid widget
             this->Implementation->CheckOverlay->setParent(qobject_cast<QWidget*>(widget->parent()));
 
             if (this->Implementation->CheckOverlay->GlWidget)
             {
-              // Cannot draw QPainter directive in openGl context, bust use another context, aka
+              // Cannot draw QPainter directive in OpenGL context, bust use another context, aka
               // another window
               // this->Implementation->CheckOverlay->setWindowFlags(Qt::ToolTip |
               // Qt::FramelessWindowHint); // ToolTip is always on top
@@ -493,7 +467,7 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
               this->Implementation->CheckOverlay->setAttribute(Qt::WA_TranslucentBackground, false);
               this->Implementation->CheckOverlay->setAttribute(Qt::WA_PaintOnScreen, false);
 
-              // Set overlay geometry to be the same as overlayed widget
+              // Set overlay geometry to be the same as overlaid widget
               this->setOverlayGeometry(widget->geometry(), false);
             }
 
@@ -583,37 +557,41 @@ void pqEventTranslator::onRecordEvent(
 {
   if (this->Implementation->IgnoredObjects.contains(Object))
   {
-    QRegExp commandFilter = this->Implementation->IgnoredObjects.value(Object);
+    QRegularExpression commandFilter = this->Implementation->IgnoredObjects.value(Object);
     if (Command.contains(commandFilter))
     {
       return;
     }
   }
 
-  if (QVariant blockRecordCommands = Object->property("BlockRecordCommands");
-      blockRecordCommands.isValid() && Command.contains(blockRecordCommands.toRegExp()))
-  {
-    return;
-  }
-
   QString name;
-  if (eventType == pqEventTypes::ACTION_EVENT)
+  if (Object)
   {
-    // When sender is pqEventObject, the Object name can be NULL.
-    if (!qobject_cast<pqEventComment*>(this->sender()) || Object)
-    {
-      name = pqObjectNaming::GetName(*Object);
-      if (name.isEmpty())
-        return;
-    }
-  }
-  else
-  {
-    // Check the QObject does have a name
-    name = pqObjectNaming::GetName(*Object);
-    if (name.isEmpty())
+    QVariant blockRecordCommands = Object->property("BlockRecordCommands");
+    if (blockRecordCommands.isValid() &&
+      Command.contains(blockRecordCommands.toRegularExpression()))
     {
       return;
+    }
+
+    if (eventType == pqEventTypes::ACTION_EVENT)
+    {
+      // When sender is pqEventObject, the Object name can be NULL.
+      if (!qobject_cast<pqEventComment*>(this->sender()) || Object)
+      {
+        name = pqObjectNaming::GetName(*Object);
+        if (name.isEmpty())
+          return;
+      }
+    }
+    else
+    {
+      // Check the QObject does have a name
+      name = pqObjectNaming::GetName(*Object);
+      if (name.isEmpty())
+      {
+        return;
+      }
     }
   }
 
@@ -622,7 +600,7 @@ void pqEventTranslator::onRecordEvent(
   {
     if (this->Implementation->InteractionsTimer.isValid())
     {
-      emit recordEvent(name, "pause",
+      Q_EMIT recordEvent(name, "pause",
         QString::number(this->Implementation->InteractionsTimer.restart()),
         pqEventTypes::ACTION_EVENT);
     }
@@ -633,7 +611,7 @@ void pqEventTranslator::onRecordEvent(
   }
 
   // Record the event
-  emit recordEvent(name, Command, Arguments, eventType);
+  Q_EMIT recordEvent(name, Command, Arguments, eventType);
 }
 
 // ----------------------------------------------------------------------------
@@ -684,4 +662,18 @@ void pqEventTranslator::setOverlayGeometry(const QRect& geometry, bool specific)
     this->Implementation->CheckOverlay->setGeometry(geometry);
   }
   this->Implementation->CheckOverlay->Specific = specific;
+}
+
+// ----------------------------------------------------------------------------
+void pqEventTranslator::recordDashboardModeToggle(QObject* object, bool toggle)
+{
+  QString name = pqObjectNaming::GetName(*object);
+  if (name.isEmpty())
+  {
+    qWarning() << "Error recording a dashboard mode event";
+    return;
+  }
+
+  Q_EMIT recordEvent(
+    name, "dashboard_mode", QVariant(toggle).toString(), pqEventTypes::ACTION_EVENT);
 }

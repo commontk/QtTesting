@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqMenuEventTranslator.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqMenuEventTranslator.h"
 
@@ -44,9 +16,7 @@ pqMenuEventTranslator::pqMenuEventTranslator(QObject* p)
 {
 }
 
-pqMenuEventTranslator::~pqMenuEventTranslator()
-{
-}
+pqMenuEventTranslator::~pqMenuEventTranslator() {}
 
 bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool& Error)
 {
@@ -70,7 +40,7 @@ bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool&
         {
           which = action->text();
         }
-        emit recordEvent(menubar, "activate", which);
+        Q_EMIT recordEvent(menubar, "activate", which);
       }
     }
     return true;
@@ -104,7 +74,7 @@ bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool&
     // can be activated without first getting focus.
     if (this->SubMenuParent.find(menu->menuAction()) != this->SubMenuParent.end())
     { // Then a previous menu has recorded this action as a sub-menu
-      emit recordEvent(
+      Q_EMIT recordEvent(
         this->SubMenuParent[menu->menuAction()], "activate", actionArgument(menu->menuAction()));
     }
   }
@@ -133,7 +103,7 @@ bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool&
       QAction* action = menu->activeAction();
       if (action)
       {
-        emit recordEvent(menu, "activate", actionArgument(action));
+        Q_EMIT recordEvent(menu, "activate", actionArgument(action));
       }
     }
     else if (e->key() == Qt::Key_Right)
@@ -141,7 +111,7 @@ bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool&
       QAction* action = menu->activeAction();
       if (action && action->menu())
       {
-        emit recordEvent(menu, "activate", actionArgument(action));
+        Q_EMIT recordEvent(menu, "activate", actionArgument(action));
       }
     }
     else
@@ -151,9 +121,14 @@ bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool&
         const QKeySequence mnemonic = QKeySequence::mnemonic(action->text());
         if (!mnemonic.isEmpty())
         { // Then the action has a keyboard accelerator
+#if QT_VERSION >= 0x060000
+          if (mnemonic ==
+            QKeySequence(QKeyCombination(e->modifiers(), static_cast<Qt::Key>(e->key()))))
+#else
           if (mnemonic == QKeySequence(e->modifiers() + e->key()))
+#endif
           {
-            emit recordEvent(menu, "activate", actionArgument(action));
+            Q_EMIT recordEvent(menu, "activate", actionArgument(action));
           }
         }
       }
@@ -168,7 +143,7 @@ bool pqMenuEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool&
       QAction* action = menu->actionAt(e->pos());
       if (action && !action->menu())
       {
-        emit recordEvent(menu, "activate", actionArgument(action));
+        Q_EMIT recordEvent(menu, "activate", actionArgument(action));
       }
     }
     return true;

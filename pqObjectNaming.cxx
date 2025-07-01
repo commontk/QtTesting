@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqObjectNaming.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqObjectNaming.h"
 
@@ -249,10 +221,11 @@ QObject* pqObjectNaming::GetObject(const QString& Name)
 
   ErrorMessage.clear();
   QTextStream stream(&ErrorMessage);
-  stream << "Couldn't find object `" << Name << "`\n";
+  stream << "\n"; // a newline to keep horizontal alignment
+  stream << "Couldn't find object  `" << Name << "`\n";
   if (lastObject)
   {
-    stream << "Found up to          `" << pqObjectNaming::GetName(*lastObject) << "`\n";
+    stream << "Found up to           `" << pqObjectNaming::GetName(*lastObject) << "`\n";
   }
 
   // controls how many matches to dump in error message.
@@ -262,30 +235,31 @@ QObject* pqObjectNaming::GetObject(const QString& Name)
   bool foundMatch = false;
   if (lastObject)
   {
-    const QObjectList matches = lastObject->findChildren<QObject*>(names[names.size() - 1]);
+    QObjectList matches = lastObject->findChildren<QObject*>(names[names.size() - 1]);
     for (int cc = 0; (matchLimit <= 0 || cc < matchLimit) && cc < matches.size(); ++cc)
     {
-      stream << "\tPossible match: `" << pqObjectNaming::GetName(*matches[cc]) << "`\n";
+      stream << "    Possible match:   `" << pqObjectNaming::GetName(*matches[cc]) << "`\n";
+      foundMatch = true;
     }
     if (matchLimit > 0 && matches.size() > matchLimit)
     {
-      stream << "\tPossible match: .... (and " << (matches.size() - matchLimit) << " more!)\n"
-             << "\tSet PQOBJECTNAMING_MATCH_LIMIT environment var to a +'ve number to limit "
+      stream << "    Possible match: .... (and " << (matches.size() - matchLimit) << " more!)\n"
+             << "    Set PQOBJECTNAMING_MATCH_LIMIT environment var to a +'ve number to limit "
                 "entries (or 0 for unlimited).\n";
     }
-  }
-  if (!foundMatch)
-  {
-    const QObjectList matches = lastObject->findChildren<QObject*>();
-    for (int cc = 0; (matchLimit <= 0 || cc < matchLimit) && cc < matches.size(); ++cc)
+    if (!foundMatch)
     {
-      stream << "\tAvailable widget: `" << pqObjectNaming::GetName(*matches[cc]) << "`\n";
-    }
-    if (matchLimit > 0 && matches.size() > matchLimit)
-    {
-      stream << "\tAvailable widget: .... (and " << (matches.size() - matchLimit) << " more!)\n"
-             << "\tSet PQOBJECTNAMING_MATCH_LIMIT environment var to a +'ve number to limit "
-                "entries (or 0 for unlimited).\n";
+      matches = lastObject->findChildren<QObject*>();
+      for (int cc = 0; (matchLimit <= 0 || cc < matchLimit) && cc < matches.size(); ++cc)
+      {
+        stream << "    Available widget: `" << pqObjectNaming::GetName(*matches[cc]) << "`\n";
+      }
+      if (matchLimit > 0 && matches.size() > matchLimit)
+      {
+        stream << "    Available widget: .... (and " << (matches.size() - matchLimit) << " more!)\n"
+               << "    Set PQOBJECTNAMING_MATCH_LIMIT environment var to a +'ve number to limit "
+                  "entries (or 0 for unlimited).\n";
+      }
     }
   }
   return 0;

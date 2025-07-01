@@ -1,35 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pq3DViewEventTranslator.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pq3DViewEventTranslator.h"
 
 #include <QEvent>
@@ -40,14 +11,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 pq3DViewEventTranslator::pq3DViewEventTranslator(const QByteArray& classname, QObject* p)
   : pqWidgetEventTranslator(p)
   , mClassType(classname)
-  , lastMoveEvent(QEvent::MouseButtonPress, QPoint(), Qt::MouseButton(), Qt::MouseButtons(),
-      Qt::KeyboardModifiers())
+  , lastMoveEvent(QEvent::MouseButtonPress, QPoint(), QPoint(), Qt::MouseButton(),
+      Qt::MouseButtons(), Qt::KeyboardModifiers())
 {
 }
 
-pq3DViewEventTranslator::~pq3DViewEventTranslator()
-{
-}
+pq3DViewEventTranslator::~pq3DViewEventTranslator() {}
 
 bool pq3DViewEventTranslator::translateEvent(QObject* Object, QEvent* Event, bool& Error)
 {
@@ -71,24 +40,33 @@ bool pq3DViewEventTranslator::translateEvent(QObject* Object, QEvent* Event, boo
       if (mouseEvent)
       {
         QSize size = widget->size();
-        double normalized_x = mouseEvent->x() / static_cast<double>(size.width());
-        double normalized_y = mouseEvent->y() / static_cast<double>(size.height());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        auto pos = mouseEvent->pos();
+#else
+        auto pos = mouseEvent->position().toPoint();
+#endif
+        double normalized_x = pos.x() / static_cast<double>(size.width());
+        double normalized_y = pos.y() / static_cast<double>(size.height());
         int button = mouseEvent->button();
         int buttons = mouseEvent->buttons();
         int modifiers = mouseEvent->modifiers();
-        emit recordEvent(Object, "mousePress", QString("(%1,%2,%3,%4,%5)")
-                                                 .arg(normalized_x)
-                                                 .arg(normalized_y)
-                                                 .arg(button)
-                                                 .arg(buttons)
-                                                 .arg(modifiers));
+        Q_EMIT recordEvent(Object, "mousePress",
+          QString("(%1,%2,%3,%4,%5)")
+            .arg(normalized_x)
+            .arg(normalized_y)
+            .arg(button)
+            .arg(buttons)
+            .arg(modifiers));
       }
 
       // reset lastMoveEvent
-      QMouseEvent e(QEvent::MouseButtonPress, QPoint(), Qt::MouseButton(), Qt::MouseButtons(),
-        Qt::KeyboardModifiers());
+      QMouseEvent e(QEvent::MouseButtonPress, QPoint(), QPoint(), Qt::MouseButton(),
+        Qt::MouseButtons(), Qt::KeyboardModifiers());
 
+#if QT_VERSION < 0x060000
+      // FIXME: QMouseEvent copy ctor is private in Qt6
       lastMoveEvent = e;
+#endif
       return true;
       break;
     }
@@ -98,10 +76,18 @@ bool pq3DViewEventTranslator::translateEvent(QObject* Object, QEvent* Event, boo
       QMouseEvent* mouseEvent = dynamic_cast<QMouseEvent*>(Event);
       if (mouseEvent)
       {
-        QMouseEvent e(QEvent::MouseMove, QPoint(mouseEvent->x(), mouseEvent->y()),
-          mouseEvent->button(), mouseEvent->buttons(), mouseEvent->modifiers());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        auto pos = mouseEvent->pos();
+#else
+        auto pos = mouseEvent->position().toPoint();
+#endif
+        QMouseEvent e(QEvent::MouseMove, pos, widget->mapToGlobal(pos), mouseEvent->button(),
+          mouseEvent->buttons(), mouseEvent->modifiers());
 
+#if QT_VERSION < 0x060000
+        // FIXME: QMouseEvent copy ctor is private in Qt6
         lastMoveEvent = e;
+#endif
       }
       return true;
       break;
@@ -117,32 +103,44 @@ bool pq3DViewEventTranslator::translateEvent(QObject* Object, QEvent* Event, boo
         // record last move event if it is valid
         if (lastMoveEvent.type() == QEvent::MouseMove)
         {
-          double normalized_x = lastMoveEvent.x() / static_cast<double>(size.width());
-          double normalized_y = lastMoveEvent.y() / static_cast<double>(size.height());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+          auto pos = lastMoveEvent.pos();
+#else
+          auto pos = lastMoveEvent.position().toPoint();
+#endif
+          double normalized_x = pos.x() / static_cast<double>(size.width());
+          double normalized_y = pos.y() / static_cast<double>(size.height());
           int button = lastMoveEvent.button();
           int buttons = lastMoveEvent.buttons();
           int modifiers = lastMoveEvent.modifiers();
 
-          emit recordEvent(Object, "mouseMove", QString("(%1,%2,%3,%4,%5)")
-                                                  .arg(normalized_x)
-                                                  .arg(normalized_y)
-                                                  .arg(button)
-                                                  .arg(buttons)
-                                                  .arg(modifiers));
+          Q_EMIT recordEvent(Object, "mouseMove",
+            QString("(%1,%2,%3,%4,%5)")
+              .arg(normalized_x)
+              .arg(normalized_y)
+              .arg(button)
+              .arg(buttons)
+              .arg(modifiers));
         }
 
-        double normalized_x = mouseEvent->x() / static_cast<double>(size.width());
-        double normalized_y = mouseEvent->y() / static_cast<double>(size.height());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        auto pos = mouseEvent->pos();
+#else
+        auto pos = mouseEvent->position().toPoint();
+#endif
+        double normalized_x = pos.x() / static_cast<double>(size.width());
+        double normalized_y = pos.y() / static_cast<double>(size.height());
         int button = mouseEvent->button();
         int buttons = mouseEvent->buttons();
         int modifiers = mouseEvent->modifiers();
 
-        emit recordEvent(Object, "mouseRelease", QString("(%1,%2,%3,%4,%5)")
-                                                   .arg(normalized_x)
-                                                   .arg(normalized_y)
-                                                   .arg(button)
-                                                   .arg(buttons)
-                                                   .arg(modifiers));
+        Q_EMIT recordEvent(Object, "mouseRelease",
+          QString("(%1,%2,%3,%4,%5)")
+            .arg(normalized_x)
+            .arg(normalized_y)
+            .arg(button)
+            .arg(buttons)
+            .arg(modifiers));
       }
       return true;
       break;
@@ -159,7 +157,7 @@ bool pq3DViewEventTranslator::translateEvent(QObject* Object, QEvent* Event, boo
                        .arg(ke->text())
                        .arg(ke->isAutoRepeat())
                        .arg(ke->count());
-      emit recordEvent(Object, "keyEvent", data);
+      Q_EMIT recordEvent(Object, "keyEvent", data);
       return true;
       break;
     }

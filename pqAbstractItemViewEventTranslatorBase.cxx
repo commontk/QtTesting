@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAbstractItemViewEventTranslatorBase.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqAbstractItemViewEventTranslatorBase.h"
 #include "pqEventTypes.h"
 
@@ -37,6 +9,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QEvent>
 #include <QKeyEvent>
 #include <QVariant>
+#include <QtGlobal>
 
 //-----------------------------------------------------------------------------
 pqAbstractItemViewEventTranslatorBase::pqAbstractItemViewEventTranslatorBase(QObject* parentObject)
@@ -90,7 +63,7 @@ bool pqAbstractItemViewEventTranslatorBase::translateEvent(
           {
             QVariant value = abstractItemView->model()->data(index);
             this->Editing = false;
-            emit this->recordEvent(abstractItemView, "editAccepted",
+            Q_EMIT this->recordEvent(abstractItemView, "editAccepted",
               QString("%1,%2").arg(indexString, value.toString()));
             return true;
             break;
@@ -98,7 +71,7 @@ bool pqAbstractItemViewEventTranslatorBase::translateEvent(
           if (ke->key() == Qt::Key_Escape)
           {
             this->Editing = false;
-            emit this->recordEvent(abstractItemView, "editCancel", indexString);
+            Q_EMIT this->recordEvent(abstractItemView, "editCancel", indexString);
             return true;
             break;
           }
@@ -106,7 +79,7 @@ bool pqAbstractItemViewEventTranslatorBase::translateEvent(
         else if (ke->key() == Qt::Key_F2)
         {
           this->Editing = true;
-          emit this->recordEvent(abstractItemView, "edit", indexString);
+          Q_EMIT this->recordEvent(abstractItemView, "edit", indexString);
           return true;
           break;
         }
@@ -127,7 +100,7 @@ bool pqAbstractItemViewEventTranslatorBase::translateEvent(
       case QEvent::ContextMenu:
       {
         auto contextMenuEvent = dynamic_cast<QContextMenuEvent*>(event);
-        emit this->recordEvent(abstractItemView, "openContextMenu",
+        Q_EMIT this->recordEvent(abstractItemView, "openContextMenu",
           this->getIndexAsString(abstractItemView->indexAt(contextMenuEvent->pos())));
         return true;
       }
@@ -179,7 +152,7 @@ bool pqAbstractItemViewEventTranslatorBase::translateEvent(
       if (this->ModelItemCheck != NULL)
       {
         QString indexString = this->getIndexAsString(*this->ModelItemCheck);
-        emit this->recordEvent(abstractItemView, "modelItemData",
+        Q_EMIT this->recordEvent(abstractItemView, "modelItemData",
           QString("%1,%2")
             .arg(indexString)
             .arg(
@@ -190,7 +163,7 @@ bool pqAbstractItemViewEventTranslatorBase::translateEvent(
       // Abstract Item View nb row check
       else
       {
-        emit this->recordEvent(abstractItemView, "modelRowCount",
+        Q_EMIT this->recordEvent(abstractItemView, "modelRowCount",
           QString::number(abstractItemView->model()->rowCount()), pqEventTypes::CHECK_EVENT);
       }
       return true;
@@ -220,7 +193,8 @@ void pqAbstractItemViewEventTranslatorBase::monitorSignals(QAbstractItemView* ab
   }
 
   // If no model has been set yet, there will be no selectionModel
-  if (auto selectionModel = abstractItemView->selectionModel(); selectionModel)
+  auto selectionModel = abstractItemView->selectionModel();
+  if (selectionModel)
   {
     if (selectionModel != this->ItemSelectionModel)
     {
@@ -249,7 +223,7 @@ void pqAbstractItemViewEventTranslatorBase::onClicked(const QModelIndex& index)
   if ((index.model()->flags(index) & Qt::ItemIsUserCheckable) != 0)
   {
     // record the check state change if the item is user-checkable.
-    emit this->recordEvent(abstractItemView, "setCheckState",
+    Q_EMIT this->recordEvent(abstractItemView, "setCheckState",
       QString("%1,%3")
         .arg(indexString)
         .arg(index.model()->data(index, Qt::CheckStateRole).toInt()));
@@ -259,7 +233,7 @@ void pqAbstractItemViewEventTranslatorBase::onClicked(const QModelIndex& index)
     index == oldIndex)
   {
     this->Editing = true;
-    emit this->recordEvent(abstractItemView, "edit", indexString);
+    Q_EMIT this->recordEvent(abstractItemView, "edit", indexString);
   }
   oldIndex = index;
 }
@@ -269,7 +243,7 @@ void pqAbstractItemViewEventTranslatorBase::onActivated(const QModelIndex& index
 {
   QAbstractItemView* abstractItemView = qobject_cast<QAbstractItemView*>(this->sender());
   QString indexString = this->getIndexAsString(index);
-  emit this->recordEvent(abstractItemView, "activate", indexString);
+  Q_EMIT this->recordEvent(abstractItemView, "activate", indexString);
 }
 
 //-----------------------------------------------------------------------------
@@ -281,8 +255,8 @@ void pqAbstractItemViewEventTranslatorBase::onDoubleClicked(const QModelIndex& i
     QAbstractItemView::DoubleClicked)
   {
     this->Editing = true;
-    emit this->recordEvent(abstractItemView, "doubleClick", indexString);
-    emit this->recordEvent(abstractItemView, "edit", indexString);
+    Q_EMIT this->recordEvent(abstractItemView, "doubleClick", indexString);
+    Q_EMIT this->recordEvent(abstractItemView, "edit", indexString);
   }
 }
 
@@ -316,12 +290,14 @@ QString pqAbstractItemViewEventTranslatorBase::getIndicesAsString(
 //-----------------------------------------------------------------------------
 void pqAbstractItemViewEventTranslatorBase::onCurrentChanged(const QModelIndex& index)
 {
-  emit this->recordEvent(this->AbstractItemView, "setCurrent", this->getIndexAsString(index));
+  Q_EMIT this->recordEvent(this->AbstractItemView, "setCurrent", this->getIndexAsString(index));
 }
 
 //-----------------------------------------------------------------------------
 void pqAbstractItemViewEventTranslatorBase::onSelectionChanged(const QItemSelection& selected)
 {
+  Q_UNUSED(selected);
+
   // see if the view supports multi-select
   auto selMode = this->AbstractItemView->selectionMode();
   if (!(QAbstractItemView::SingleSelection == selMode || QAbstractItemView::NoSelection == selMode))
@@ -339,7 +315,7 @@ void pqAbstractItemViewEventTranslatorBase::onSelectionChanged(const QItemSelect
       selectedIndices.push_back(selRange.bottomRight());
     }
 
-    emit this->recordEvent(
+    Q_EMIT this->recordEvent(
       this->AbstractItemView, "setSelection", this->getIndicesAsString(selectedIndices));
   }
 }
@@ -348,5 +324,5 @@ void pqAbstractItemViewEventTranslatorBase::onSelectionChanged(const QItemSelect
 void pqAbstractItemViewEventTranslatorBase::onViewportEnteredCheck()
 {
   this->ModelItemCheck = NULL;
-  emit this->specificOverlay(this->AbstractItemView->rect());
+  Q_EMIT this->specificOverlay(this->AbstractItemView->rect());
 }

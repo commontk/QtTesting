@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonEventSource.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
    Use the "documented" trick involving checking for _DEBUG
@@ -137,7 +109,7 @@ static PyObject* QtTesting_getProperty(PyObject* /*self*/, PyObject* args)
 
   PropertyObject = object;
   PropertyResult = property;
-  PropertyValue = QString::null;
+  PropertyValue = QString();
 
   if (Instance && QThread::currentThread() != QApplication::instance()->thread())
   {
@@ -158,13 +130,13 @@ static PyObject* QtTesting_getProperty(PyObject* /*self*/, PyObject* args)
     return NULL;
   }
 
-  if (PropertyObject == QString::null)
+  if (PropertyObject.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "object not found");
     return NULL;
   }
 
-  if (PropertyResult == QString::null)
+  if (PropertyResult.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "property not found");
     return NULL;
@@ -210,13 +182,13 @@ static PyObject* QtTesting_setProperty(PyObject* /*self*/, PyObject* args)
     return NULL;
   }
 
-  if (PropertyObject == QString::null)
+  if (PropertyObject.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "object not found");
     return NULL;
   }
 
-  if (PropertyResult == QString::null)
+  if (PropertyResult.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "property not found");
     return NULL;
@@ -267,7 +239,7 @@ static PyObject* QtTesting_getChildren(PyObject* /*self*/, PyObject* args)
     return NULL;
   }
 
-  if (PropertyObject == QString::null)
+  if (PropertyObject.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "object not found");
     return NULL;
@@ -315,12 +287,12 @@ static PyObject* QtTesting_invokeMethod(PyObject* /*self*/, PyObject* args)
     return NULL;
   }
 
-  if (PropertyObject == QString::null)
+  if (PropertyObject.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "object not found");
     return NULL;
   }
-  else if (PropertyValue == QString::null)
+  else if (PropertyValue.isEmpty())
   {
     PyErr_SetString(PyExc_ValueError, "method not found");
     return NULL;
@@ -401,13 +373,13 @@ QString pqPythonEventSource::getProperty(QString& object, QString& prop)
   QObject* qobject = pqObjectNaming::GetObject(object);
   if (!qobject)
   {
-    object = QString::null;
+    object = QString();
     return QString();
   }
   int idx = qobject->metaObject()->indexOfProperty(prop.toUtf8().data());
   if (idx == -1)
   {
-    prop = QString::null;
+    prop = QString();
     return QString();
   }
   else
@@ -438,14 +410,14 @@ void pqPythonEventSource::setProperty(QString& object, QString& prop, const QStr
   QObject* qobject = pqObjectNaming::GetObject(object);
   if (!qobject)
   {
-    object = QString::null;
+    object = QString();
     return;
   }
 
   int idx = qobject->metaObject()->indexOfProperty(prop.toUtf8().data());
   if (idx == -1)
   {
-    prop = QString::null;
+    prop = QString();
     return;
   }
   else
@@ -475,12 +447,12 @@ QStringList pqPythonEventSource::getChildren(QString& object)
   QObject* qobject = pqObjectNaming::GetObject(object);
   if (!qobject)
   {
-    object = QString::null;
+    object = QString();
   }
   else
   {
     const QObjectList& children = qobject->children();
-    foreach (QObject* child, children)
+    Q_FOREACH (QObject* child, children)
     {
       ret.append(pqObjectNaming::GetName(*child));
     }
@@ -541,13 +513,13 @@ QString pqPythonEventSource::invokeMethod(QString& object, QString& method)
   QObject* qobject = pqObjectNaming::GetObject(object);
   if (!qobject)
   {
-    object = QString::null;
+    object = QString();
   }
   else
   {
     if (!QMetaObject::invokeMethod(qobject, method.toUtf8().data(), Q_RETURN_ARG(QVariant, ret)))
     {
-      method = QString::null;
+      method = QString();
     }
   }
   return ret.toString();

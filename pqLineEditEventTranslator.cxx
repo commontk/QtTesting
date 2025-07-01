@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqLineEditEventTranslator.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqLineEditEventTranslator.h"
 
@@ -87,22 +59,22 @@ bool pqLineEditEventTranslator::translateEvent(
         {
           if (leObject)
           {
-            emit recordEvent(tmpObject, "set_string", leObject->text());
+            Q_EMIT recordEvent(tmpObject, "set_string", leObject->text());
           }
           else if (teObject)
           {
-            emit recordEvent(tmpObject, "set_string", teObject->document()->toPlainText());
+            Q_EMIT recordEvent(tmpObject, "set_string", teObject->document()->toPlainText());
           }
           else if (pteObject)
           {
-            emit recordEvent(tmpObject, "set_string", pteObject->document()->toPlainText());
+            Q_EMIT recordEvent(tmpObject, "set_string", pteObject->document()->toPlainText());
           }
         }
         // if we record F2 event, will cause some issue with the TreeView
         // Need test to know if we need to record those events
         else if (ke->key() != Qt::Key_F2)
         {
-          emit recordEvent(tmpObject, "key", QString("%1").arg(ke->key()));
+          Q_EMIT recordEvent(tmpObject, "key", QString("%1").arg(ke->key()));
         }
         return true;
         break;
@@ -125,12 +97,12 @@ bool pqLineEditEventTranslator::translateEvent(
       {
         if (teObject != NULL)
         {
-          emit this->recordEvent(teObject, "plainText", teObject->toPlainText().replace("\t", " "),
-            pqEventTypes::CHECK_EVENT);
+          Q_EMIT this->recordEvent(teObject, "plainText",
+            teObject->toPlainText().replace("\t", " "), pqEventTypes::CHECK_EVENT);
         }
         else /* if (pteObject != NULL)*/
         {
-          emit this->recordEvent(pteObject, "plainText",
+          Q_EMIT this->recordEvent(pteObject, "plainText",
             pteObject->toPlainText().replace("\t", " "), pqEventTypes::CHECK_EVENT);
         }
         return true;

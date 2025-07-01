@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAbstractItemViewEventPlayerBase.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqAbstractItemViewEventPlayerBase.h"
 #include "pqEventTypes.h"
 
@@ -37,6 +9,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QCoreApplication>
 #include <QDebug>
 #include <QMenu>
+#include <QtGlobal>
+
+namespace
+{
+int findSection(QAbstractItemModel* model, const QString& label, Qt::Orientation orientation,
+  int role = Qt::DisplayRole)
+{
+  QStringList currentHeaders;
+  const int max = orientation == Qt::Horizontal ? model->columnCount() : model->rowCount();
+  for (int section = 0; section < max; ++section)
+  {
+    auto data = model->headerData(section, orientation, role).toString();
+    currentHeaders.push_back(data);
+    if (data == label)
+    {
+      return section;
+    }
+  }
+
+  qCritical() << "No header labeled '" << label << "' was found. "
+              << "Available values are " << currentHeaders;
+  return -1;
+}
+
+} // end of namespace
 
 //-----------------------------------------------------------------------------
 pqAbstractItemViewEventPlayerBase::pqAbstractItemViewEventPlayerBase(QObject* parentObject)
@@ -45,9 +42,7 @@ pqAbstractItemViewEventPlayerBase::pqAbstractItemViewEventPlayerBase(QObject* pa
 }
 
 //-----------------------------------------------------------------------------
-pqAbstractItemViewEventPlayerBase::~pqAbstractItemViewEventPlayerBase()
-{
-}
+pqAbstractItemViewEventPlayerBase::~pqAbstractItemViewEventPlayerBase() {}
 
 //-----------------------------------------------------------------------------
 QModelIndex pqAbstractItemViewEventPlayerBase::GetIndex(
@@ -57,19 +52,45 @@ QModelIndex pqAbstractItemViewEventPlayerBase::GetIndex(
   int sep = itemStr.indexOf(",");
   QString strIndex = itemStr.left(sep);
 
-  // Recover model index
-  QStringList indices = strIndex.split(".", QString::SkipEmptyParts);
-  QModelIndex index;
-  if (indices.size() < 2)
+// Recover model index
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+  const QStringList indices = strIndex.split(".", Qt::SkipEmptyParts);
+#else
+  const QStringList indices = strIndex.split(".", QString::SkipEmptyParts);
+#endif
+  if (indices.isEmpty() || (indices.size() % 2 != 0)) // indices are in pairs (row, column).
   {
     error = true;
-    return index;
+    qCritical() << "ERROR: Incorrect number of values in index! Cannot playback.";
+    return QModelIndex();
   }
 
-  index = abstractItemView->model()->index(indices[0].toInt(), indices[1].toInt(), index);
-  for (int cc = 2; (cc + 1) < indices.size(); cc += 2)
+  QList<int> iIndices;
+  auto model = abstractItemView->model();
+
+  // indices may be simply ints or strings. If not ints, then assume strings that
+  // represent row or column name.
+  for (int cc = 0; cc < indices.size(); ++cc)
   {
-    index = abstractItemView->model()->index(indices[cc].toInt(), indices[cc + 1].toInt(), index);
+    bool ok;
+    int index = indices[cc].toInt(&ok);
+    if (!ok)
+    {
+      // must be a string that represents the row/column name. determine the index.
+      index = ::findSection(model, indices[cc], (cc % 2 == 0) ? Qt::Vertical : Qt::Horizontal);
+      if (index == -1)
+      {
+        error = true;
+        return QModelIndex();
+      }
+    }
+    iIndices.push_back(index);
+  }
+
+  QModelIndex index;
+  for (int cc = 0; (cc + 1) < iIndices.size(); cc += 2)
+  {
+    index = abstractItemView->model()->index(iIndices[cc], iIndices[cc + 1], /*parent=*/index);
     if (!index.isValid())
     {
       error = true;
@@ -84,6 +105,8 @@ QModelIndex pqAbstractItemViewEventPlayerBase::GetIndex(
 //-----------------------------------------------------------------------------
 QString pqAbstractItemViewEventPlayerBase::GetDataString(const QString& itemStr, bool& error)
 {
+  Q_UNUSED(error);
+
   // Get only the "data" part of the string
   int sep = itemStr.indexOf(",");
   return itemStr.mid(sep + 1);
@@ -113,11 +136,12 @@ bool pqAbstractItemViewEventPlayerBase::playEvent(
       return false;
     }
 
-    QRegExp regExp1("^([\\d\\.]+),(\\d+)$");
-    if (command == "setCheckState" && regExp1.indexIn(arguments) != -1)
+    QRegularExpression regExp1("^([\\d\\.]+),(\\d+)$");
+    QRegularExpressionMatch match = regExp1.match(arguments);
+    if (command == "setCheckState" && match.hasMatch())
     {
-      QString strIndex = regExp1.cap(1);
-      int check_state = regExp1.cap(2).toInt();
+      QString strIndex = match.captured(1);
+      int check_state = match.captured(2).toInt();
 
       QModelIndex index =
         pqAbstractItemViewEventPlayerBase::GetIndex(strIndex, abstractItemView, error);
@@ -221,42 +245,38 @@ bool pqAbstractItemViewEventPlayerBase::playEvent(
       }
       // shouldn't have to check selectionMode - single or multi enforced when recorded.
       auto selMode = abstractItemView->selectionMode();
-      if (QAbstractItemView::SingleSelection == selMode ||
-        QAbstractItemView::NoSelection == selMode)
+      if (QAbstractItemView::NoSelection == selMode)
       {
-        qCritical() << "ERROR: Multi-select on ItemView with no- or single-select mode :"
-                    << selMode;
+        qCritical() << "ERROR: Multi-select on ItemView with no-select mode :" << selMode;
         return true;
       }
 
       if (strIndexList.isEmpty())
       {
         abstractItemView->clearSelection();
+        return true;
       }
-      else
+
+      QModelIndex topLeft, bottomRight;
+      QItemSelection selection;
+      // don't reset the selection - setCurrent does that, and is always recorded first.
+      for (int i = 0; i < indexList.size(); i += 2)
       {
-        bool first = true;
-        QModelIndex topLeft, bottomRight;
-        QItemSelection selection;
-        // don't reset the selection - setCurrent does that, and is always recorded first.
-        for (int i = 0; i < indexList.size(); i += 2)
+        // ranges are recorded in pairs, topLeft -> bottomRight, but to a flat list for
+        // simplicity.
+        topLeft =
+          pqAbstractItemViewEventPlayerBase::GetIndex(indexList.at(i), abstractItemView, error);
+        bottomRight =
+          pqAbstractItemViewEventPlayerBase::GetIndex(indexList.at(i + 1), abstractItemView, error);
+        if (error)
         {
-          // ranges are recorded in pairs, topLeft -> bottomRight, but to a flat list for
-          // simplicity.
-          topLeft =
-            pqAbstractItemViewEventPlayerBase::GetIndex(indexList.at(i), abstractItemView, error);
-          bottomRight = pqAbstractItemViewEventPlayerBase::GetIndex(
-            indexList.at(i + 1), abstractItemView, error);
-          if (error)
-          {
-            return true;
-          }
-          QItemSelection itemSel(topLeft, bottomRight);
-          // merge allows a single selection to contain multiple ranges.
-          selection.merge(itemSel, QItemSelectionModel::Select);
+          return true;
         }
-        selModel->select(selection, selFlag);
+        QItemSelection itemSel(topLeft, bottomRight);
+        // merge allows a single selection to contain multiple ranges.
+        selection.merge(itemSel, QItemSelectionModel::Select);
       }
+      selModel->select(selection, selFlag);
       return true;
     }
     else if (command == "openContextMenu")

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAbstractItemViewEventPlayer.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqAbstractItemViewEventPlayer.h"
 
@@ -48,7 +20,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /// Converts a string representation of a model index into the real thing
 static QModelIndex OldGetIndex(QAbstractItemView& View, const QString& Name)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+  QStringList rows = Name.split('/', Qt::SkipEmptyParts);
+#else
   QStringList rows = Name.split('/', QString::SkipEmptyParts);
+#endif
   QString column;
 
   if (rows.size())
@@ -88,7 +64,11 @@ static QModelIndex GetIndexByItemName(QAbstractItemView& View, const QString& Na
 
 static QModelIndex GetIndex(QAbstractItemView* View, const QString& Name)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+  QStringList idxs = Name.split('/', Qt::SkipEmptyParts);
+#else
   QStringList idxs = Name.split('/', QString::SkipEmptyParts);
+#endif
 
   QModelIndex index;
   for (int i = 0; i != idxs.size(); ++i)
@@ -200,7 +180,8 @@ bool pqAbstractItemViewEventPlayer::playEvent(
       if (Command == "mouseWheel")
       {
         int delta = args[0].toInt();
-        QWheelEvent we(QPoint(x, y), delta, buttons, keym);
+        QWheelEvent we(QPointF(x, y), QPointF(x, y), QPoint(0, 0), QPoint(0, delta), buttons, keym,
+          Qt::NoScrollPhase, false);
         QCoreApplication::sendEvent(Object, &we);
         return true;
       }
@@ -209,7 +190,7 @@ bool pqAbstractItemViewEventPlayer::playEvent(
       type = Command == "mouseMove" ? QEvent::MouseMove : type;
       type = Command == "mouseRelease" ? QEvent::MouseButtonRelease : type;
       type = Command == "mouseDblClick" ? QEvent::MouseButtonDblClick : type;
-      QMouseEvent e(type, pt, button, buttons, keym);
+      QMouseEvent e(type, pt, object->mapToGlobal(pt), button, buttons, keym);
       qApp->notify(object->viewport(), &e);
       return true;
     }

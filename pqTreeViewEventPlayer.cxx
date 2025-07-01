@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqTreeViewEventPlayer.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqTreeViewEventPlayer.h"
 #include <QDebug>
 #include <QMenu>
@@ -41,11 +13,9 @@ pqTreeViewEventPlayer::pqTreeViewEventPlayer(QObject* parentObject)
 }
 
 //-----------------------------------------------------------------------------
-pqTreeViewEventPlayer::~pqTreeViewEventPlayer()
-{
-}
+pqTreeViewEventPlayer::~pqTreeViewEventPlayer() {}
 
-//-----------------------------------------------------------------------------0000000
+//-----------------------------------------------------------------------------
 bool pqTreeViewEventPlayer::playEvent(
   QObject* object, const QString& command, const QString& arguments, int eventType, bool& error)
 {
@@ -63,8 +33,9 @@ bool pqTreeViewEventPlayer::playEvent(
     return false;
   }
 
-  QRegExp regExp0("^([\\d\\.]+),(\\d+),(\\d+)$");
-  if (command == "setTreeItemCheckState" && regExp0.indexIn(arguments) != -1)
+  QRegularExpression regExp0("^([\\d\\.]+),(\\d+),(\\d+)$");
+  QRegularExpressionMatch match = regExp0.match(arguments);
+  if (command == "setTreeItemCheckState" && match.hasMatch())
   {
     // legacy command recorded from tree widgets.
     QTreeWidget* treeWidget = qobject_cast<QTreeWidget*>(object);
@@ -72,13 +43,16 @@ bool pqTreeViewEventPlayer::playEvent(
     {
       return false;
     }
-    QString str_index = regExp0.cap(1);
-    int column = regExp0.cap(2).toInt();
-    int check_state = regExp0.cap(3).toInt();
-
+    QString str_index = match.captured(1);
+    int column = match.captured(2).toInt();
+    int check_state = match.captured(3).toInt();
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+    QStringList indices = str_index.split(".", Qt::SkipEmptyParts);
+#else
     QStringList indices = str_index.split(".", QString::SkipEmptyParts);
+#endif
     QTreeWidgetItem* cur_item = NULL;
-    foreach (QString cur_index, indices)
+    Q_FOREACH (QString cur_index, indices)
     {
       int index = cur_index.toInt();
       if (!cur_item)
