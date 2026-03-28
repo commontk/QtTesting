@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(QtTesting)
-
+#-----------------------------------------------------------------------------
+# Setting QT_VERSION
+#-----------------------------------------------------------------------------
 if(NOT DEFINED QtTesting_QT_VERSION)
     set(QtTesting_QT_VERSION "5" CACHE STRING "Expected Qt version")
     mark_as_advanced(QtTesting_QT_VERSION)
@@ -18,6 +19,28 @@ if(
         "Expected value for QtTesting_QT_VERSION is either '5' or '6'"
     )
 endif()
+
+#-----------------------------------------------------------------------------
+# Setting C++ Standard (must be done before project() call)
+#-----------------------------------------------------------------------------
+set(_msg "Setting C++ standard")
+message(STATUS "${_msg}")
+if(NOT CMAKE_CXX_STANDARD)
+  # The minimum CMAKE_CXX_STANDARD for Qt 5.15 is C++11,
+  # but C++17 is strongly recommended for better compatibility and feature support.
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+if( QtTesting_QT_VERSION VERSION_EQUAL "6" )
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  if(CMAKE_CXX_STANDARD GREATER_EQUAL "17" AND CMAKE_CXX_STANDARD LESS "98")
+    message(STATUS "${_msg} - C++${CMAKE_CXX_STANDARD}")
+  else()
+    message(FATAL_ERROR "CMAKE_CXX_STANDARD must be set to 17 or greater")
+  endif()
+endif()
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+project(QtTesting)
 
 set(qt_imported_targets)
 find_package(Qt${QtTesting_QT_VERSION} REQUIRED COMPONENTS Core Widgets Gui)
