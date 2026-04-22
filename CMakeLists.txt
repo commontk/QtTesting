@@ -308,11 +308,9 @@ else()
     target_compile_definitions(qttesting PRIVATE QT_NO_KEYWORDS)
 
     # Set library name to include custom prefixes/suffixes.
-    set_property(
-        TARGET qttesting
-        PROPERTY
-            OUTPUT_NAME
-                ${QT_TESTING_CUSTOM_LIBRARY_PREFIX}qttesting${QT_TESTING_CUSTOM_LIBRARY_SUFFIX}
+    set_target_properties(qttesting PROPERTIES
+        DEFINE_SYMBOL QtTesting_EXPORTS
+        OUTPUT_NAME ${QT_TESTING_CUSTOM_LIBRARY_PREFIX}qttesting${QT_TESTING_CUSTOM_LIBRARY_SUFFIX}
     )
 
     target_link_libraries(qttesting PRIVATE ${qt_imported_targets})
